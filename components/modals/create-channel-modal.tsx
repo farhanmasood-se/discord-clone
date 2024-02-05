@@ -1,10 +1,11 @@
 "use client";
 
-import qs from "query-string"
+import qs from "query-string";
 import axios from "axios";
 import * as z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
+import { ChannelType } from "@prisma/client";
 
 import {
     Dialog,
@@ -21,43 +22,54 @@ import {
     FormLabel,
     FormMessage
 } from "@/components/ui/form";
-
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { useParams, useRouter } from "next/navigation";
+import { useModal } from "@/hooks/use-modal-store";
 import {
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
     SelectValue
-} from "@/components/ui/select"
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { useParams, useRouter } from "next/navigation";
-import { useModal } from "@/hooks/use-modal-store";
-import { ChannelType } from "@prisma/client";
+} from "@/components/ui/select";
+import { useEffect } from "react";
 
 const formSchema = z.object({
     name: z.string().min(1, {
         message: "Channel name is required."
-    }).refine(name => name !== 'general', {
-        message: "Channel name cannot be 'general'."
-    }),
+    }).refine(
+        name => name !== "general",
+        {
+            message: "Channel name cannot be 'general'"
+        }
+    ),
     type: z.nativeEnum(ChannelType)
 });
 
 export const CreateChannelModal = () => {
-    const { isOpen, onClose, type } = useModal();
+    const { isOpen, onClose, type, data } = useModal();
     const router = useRouter();
     const params = useParams();
 
     const isModalOpen = isOpen && type === "createChannel";
+    const { channelType } = data;
 
     const form = useForm({
         resolver: zodResolver(formSchema),
         defaultValues: {
             name: "",
-            type: ChannelType.TEXT,
+            type: channelType || ChannelType.TEXT,
         }
     });
+
+    useEffect(() => {
+        if (channelType) {
+            form.setValue("type", channelType);
+        } else {
+            form.setValue("type", ChannelType.TEXT);
+        }
+    }, [channelType, form]);
 
     const isLoading = form.formState.isSubmitting;
 
@@ -66,10 +78,9 @@ export const CreateChannelModal = () => {
             const url = qs.stringifyUrl({
                 url: "/api/channels",
                 query: {
-                    serverId: params?.serverId,
+                    serverId: params?.serverId
                 }
-            })
-
+            });
             await axios.post(url, values);
 
             form.reset();
@@ -123,9 +134,7 @@ export const CreateChannelModal = () => {
                                 name="type"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>
-                                            Channel Type
-                                        </FormLabel>
+                                        <FormLabel>Channel Type</FormLabel>
                                         <Select
                                             disabled={isLoading}
                                             onValueChange={field.onChange}
@@ -140,7 +149,11 @@ export const CreateChannelModal = () => {
                                             </FormControl>
                                             <SelectContent>
                                                 {Object.values(ChannelType).map((type) => (
-                                                    <SelectItem key={type} value={type} className="capitalize">
+                                                    <SelectItem
+                                                        key={type}
+                                                        value={type}
+                                                        className="capitalize"
+                                                    >
                                                         {type.toLowerCase()}
                                                     </SelectItem>
                                                 ))}
